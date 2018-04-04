@@ -1,0 +1,9 @@
+[package]
+name = "three_pieces"
+version = "0.1.0"
+authors = ["nooberfsh"]
+
+[dependencies]
+regex = "0.2"
+reqwest = "0.8"
+rayon = "1.0"
