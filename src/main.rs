@@ -1,8 +1,8 @@
+extern crate rayon;
 extern crate regex;
 extern crate reqwest;
-extern crate rayon;
 
-use std::io::{self, BufReader, BufRead};
+use std::io::{self, BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::fs;
 use std::time::Instant;
@@ -11,12 +11,11 @@ use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 use regex::Regex;
 use rayon::prelude::*;
 
-
 const URL: &str = "http://pages.cs.wisc.edu/~remzi/OSTEP/";
 const DST: &str = "pdf";
 
 #[derive(Debug)]
-enum Error{
+enum Error {
     Io(io::Error),
     Reqwest(reqwest::Error),
 }
@@ -40,10 +39,7 @@ struct Pdf {
 
 impl Pdf {
     fn new(no: Option<String>, name: String) -> Self {
-        Pdf {
-            no: no,
-            name: name,
-        }
+        Pdf { no: no, name: name }
     }
 
     fn full_name(&self) -> String {
@@ -62,14 +58,14 @@ impl Pdf {
 fn extract<P: AsRef<Path>>(path: P) -> Result<Vec<Pdf>, Error> {
     let html = fs::File::open(path)?;
     let reader = BufReader::new(html);
-    let rg_name =  Regex::new(r#"href=(.+pdf)"#).unwrap();
+    let rg_name = Regex::new(r#"href=(.+pdf)"#).unwrap();
     let rg_no = Regex::new(r#"<small>(\d+)</small>"#).unwrap();
-    let mut ret  = vec![];
+    let mut ret = vec![];
 
     for line in reader.lines() {
         let line = line?;
         if let Some(pdf) = rg_name.captures(&line) {
-            let no = rg_no.captures(&line).map(|no|no[1].to_string());
+            let no = rg_no.captures(&line).map(|no| no[1].to_string());
             ret.push(Pdf::new(no, pdf[1].to_string()));
         }
     }
@@ -92,9 +88,9 @@ fn download_html<P: AsRef<Path>>(target: P) -> Result<(), Error> {
 }
 
 fn init() -> Result<(), Error> {
-    let path: &Path= DST.as_ref();
+    let path: &Path = DST.as_ref();
     if path.exists() {
-        if path.is_file()   {
+        if path.is_file() {
             fs::remove_file(path)?;
         } else if path.is_dir() {
             fs::remove_dir_all(path)?;
@@ -118,9 +114,9 @@ fn main() {
     let pdfs = extract(&html).expect("extect pdf meta failed");
     let succeed_count = AtomicUsize::new(0);
     let failed_count = AtomicUsize::new(0);
-    pdfs.par_iter().for_each(|pdf|{
+    pdfs.par_iter().for_each(|pdf| {
         println!("Begin to download {}", pdf.full_name());
-        if let Err(e) = download_pdf(pdf, DST)  {
+        if let Err(e) = download_pdf(pdf, DST) {
             println!("Download {} failed, reason: {:?}", pdf.full_name(), e);
             failed_count.fetch_add(1, SeqCst);
         } else {
@@ -128,6 +124,12 @@ fn main() {
             succeed_count.fetch_add(1, SeqCst);
         }
     });
-    
-    println!("Finishing downoloading {} objects in {:?}, {} success, {} failed", pdfs.len(), now.elapsed(), succeed_count.load(SeqCst), failed_count.load(SeqCst));
+
+    println!(
+        "Finishing downoloading {} objects in {:?}, {} success, {} failed",
+        pdfs.len(),
+        now.elapsed(),
+        succeed_count.load(SeqCst),
+        failed_count.load(SeqCst)
+    );
 }
